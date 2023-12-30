@@ -69,6 +69,14 @@ def generate_caddyfile(ports, filename):
         http_hosts = " ".join(http_ports)
 
         caddyfile = ""
+
+        caddyfile += f"""
+        {{
+            servers {{
+                protocols h1 h2 h2c
+            }}
+        }}
+        """
         if https_ports:
             caddyfile += f"""
             {https_hosts} {{
@@ -110,7 +118,7 @@ def check_tmux_docker():
 def main():
     check_tmux_docker()
     if len(argv) < 3:
-        print(f"Usage: python {argv[0]} -p [port_file|start_port-end_port]")
+        print(f"Usage: python3 {argv[0]} -p [port_file|start_port-end_port]")
         exit(1)
 
     if argv[1] == "-p":
