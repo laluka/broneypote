@@ -20,7 +20,7 @@ def get_public_ip():
 def read_ports_from_file(filename):
     try:
         with open(filename, "r") as file:
-            ports = [int(line.strip()) for line in file if line.strip()]
+            ports = list({int(line.strip()) for line in file if line.strip()})
             validate_ports(ports)
             return ports
     except FileNotFoundError:
@@ -40,7 +40,7 @@ def parse_port_range(port_specifier):
     try:
         start_port, end_port = map(int, port_specifier.split('-'))
         if not (1 <= start_port <= end_port <= 65535):
-            raise ValueError("Invalid port range. Both start and end ports should be between 1 and 65535.")
+            raise ValueError("Invalid port range. Both start and end port should be between 1 and 65535.")
         return list(range(start_port, end_port + 1))
     except ValueError as ve:
         print(f"Error parsing port range: {ve}")
@@ -49,18 +49,17 @@ def parse_port_range(port_specifier):
 def generate_caddyfile(ports, filename):
     try:
         ip = get_public_ip()
-        free_ports = list()
-        listen_connections = list(filter(lambda con: "SOCK_STREAM" in str(con.type) and con.status == "LISTEN", net_connections()))
-        busy_ports = [conn.laddr.port for conn in listen_connections]
-        for port in ports:
-            # Keep some free ports, just in case.
-            if 65111 <= port <= 65222 or port in busy_ports:
-                print(f"Skipping port {port} as it is reserved or in use.")
-            else:
-                free_ports.append(str(port))
+        
+        busy_ports = [conn.laddr.port for conn in filter(lambda con: "SOCK_STREAM" in str(con.type) and con.status == "LISTEN", net_connections())]
+            
+        if {80}.intersection(busy_ports):
+            raise ValueError("Please unbind port 80 as Caddy uses it by default.")
 
-        https_hosts = list()
-        http_hosts = list()
+        for port in set(busy_ports).intersection(ports):
+            print(f"Skipping port {port} as it is in use.")
+        
+        # Keep some free ports, just in case.
+        free_ports = [str(port) for port in ports if not (65111 <= port <= 65222) and port not in busy_ports]
 
         https_ports = [f"{ip}:{port}" for port in free_ports if "443" in str(port)]
         http_ports = [f"{ip}:{port}" for port in free_ports if "443" not in str(port)]
@@ -111,6 +110,7 @@ def check_tmux_docker():
         exit(1)
     if not shutil.which("docker"):
         print("Docker is not installed or in PATH. Please install it before running the script.")
+        exit(1)
     if not "TMUX" in os.environ:
         print("Please run the script inside tmux for proper execution.")
         exit(1)
