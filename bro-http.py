@@ -11,6 +11,7 @@ LHOST = "127.0.0.1"
 LPORT = 65111
 Path("dump/http").mkdir(parents=True, exist_ok=True)
 
+
 class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
     def handle_ALL(self):
         # Dump our logs
@@ -23,11 +24,12 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
         data["version"] = self.request_version
         data.update(dict(self.headers))
 
-
-        if 'Content-Length' in self.headers:
+        if "Content-Length" in self.headers:
             # from rich import inspect as i
             # import ipdb; ipdb.set_trace()
-            data["body"] = self.rfile.read(int(self.headers['Content-Length'])).decode("utf-8")
+            data["body"] = self.rfile.read(int(self.headers["Content-Length"])).decode(
+                "utf-8"
+            )
             print("body: ", data["body"])
 
         with open(f"dump/http/{uuid.uuid4().hex}.json", "w") as f:
