@@ -46,10 +46,8 @@ def parse_port_range(port_specifier):
         print(f"Error parsing port range: {ve}")
         exit(1)
 
-def generate_caddyfile(ports, filename):
+def generate_caddyfile(pub_ip, ports, filename):
     try:
-        ip = get_public_ip()
-        
         busy_ports = [conn.laddr.port for conn in filter(lambda con: "SOCK_STREAM" in str(con.type) and con.status == "LISTEN", net_connections())]
             
         if {80}.intersection(busy_ports):
@@ -61,8 +59,8 @@ def generate_caddyfile(ports, filename):
         # Keep some free ports, just in case.
         free_ports = [str(port) for port in ports if not (65111 <= port <= 65222) and port not in busy_ports]
 
-        https_ports = [f"{ip}:{port}" for port in free_ports if "443" in str(port)]
-        http_ports = [f"{ip}:{port}" for port in free_ports if "443" not in str(port)]
+        https_ports = [f"{pub_ip}:{port}" for port in free_ports if "443" in str(port)]
+        http_ports = [f"{pub_ip}:{port}" for port in free_ports if "443" not in str(port)]
 
         https_hosts = " ".join(https_ports)
         http_hosts = " ".join(http_ports)
@@ -95,12 +93,12 @@ def generate_caddyfile(ports, filename):
         print(f"Error generating Caddyfile: {e}")
         exit(1)
 
-def start_caddy_docker():
+def start_caddy_docker(pub_ip):
     print("[+] Config file is ready.")
     print("[+] Now starting caddy docker")
     system("tmux split-window -d 'docker run --rm -it --net=host -v $PWD/Caddyfile:/etc/caddy/Caddyfile -v /tmp/caddy_data2:/data caddy'")
-    print(f"Caddy sample running on http://{get_public_ip()}/")
-    print(f"Caddy sample running on https://{get_public_ip()}/")
+    print(f"Caddy sample running on http://{pub_ip}/")
+    print(f"Caddy sample running on https://{pub_ip}/")
     print("[+] Now starting bro-http.py")
     exit(system("python3 bro-http.py"))
 
@@ -130,9 +128,9 @@ def main():
         else:
             print("Invalid port specifier. Use either a file or a range (e.g., 8000-8100).")
             exit(1)
-
-        generate_caddyfile(ports, "Caddyfile")
-        start_caddy_docker()
+        pub_ip = get_public_ip()
+        generate_caddyfile(pub_ip, ports, "Caddyfile")
+        start_caddy_docker(pub_ip)
     else:
         print(f"Invalid option {argv[1]}. Use -p to specify a port list file or range (e.g., 8000-8100).")
         exit(1)
